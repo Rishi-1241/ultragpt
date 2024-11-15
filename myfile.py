@@ -1152,53 +1152,6 @@ def delete_pdf(username, given_id):
 
 # google.oauth2.credentials.Credentials
 
-# sending gmail without the below functions, as they don't work
-def sendMail(sender, to, subject, msg="", msgHtml=None):
-    print("Parmas", sender, to, subject, msg, msgHtml)
-    # getting refresh token from sql record of sender email
-    conn = mysql.connect()
-    cur = conn.cursor()
-    query = "SELECT refresh_token FROM users WHERE email_id=%s"
-    cur.execute(query, (sender,))
-    result = cur.fetchall()
-    cur.close()
-    conn.close()
-    refresh_token = result[0][0]
-    if (refresh_token == "" or refresh_token == None):
-        return "Need Google Sign In for this feature"
-    print("Got refresh token", refresh_token, "for", sender, "from sql")
-
-    # getting new access_token from refresh token
-    url = "https://www.googleapis.com/oauth2/v4/token"
-    payload = {
-        "grant_type": "refresh_token",
-        "client_id": "",
-        "client_secret": "",
-        "refresh_token": refresh_token
-    }
-    headers = {
-        "Content-Type": "application/x-www-form-urlencoded"
-    }
-    response = requests.request("POST", url, data=payload, headers=headers)
-    print("RESponse", response)
-    try:
-        acctok422 = response.json()["access_token"]
-    except:
-        return "Need to sign in again"
-    print("Access token", acctok422)
-
-    credentials = google.oauth2.credentials.Credentials(
-        token=acctok422,
-        refresh_token=refresh_token,
-        token_uri='https://oauth2.googleapis.com/token',
-        client_id="",
-        client_secret='',
-        scopes=["https://www.googleapis.com/auth/gmail.send"]
-    )
-    # http = credentials.authorize(httplib2.Http())
-    service = build('gmail', 'v1', credentials=credentials)
-    message1 = CreateMessage(sender, to, subject, msg, msgHtml)
-    SendMessageInternal(service, "me", message1)
 
 
 def SendMessageInternal(service, user_id, message):

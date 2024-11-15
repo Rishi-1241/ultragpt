@@ -79,7 +79,6 @@ import openai
 import mysql.connector as mysql
 import mysql.connector
 from mysql.connector import pooling, OperationalError
-
 # Initialize FastAPI app
 app = FastAPI()
 
@@ -91,7 +90,6 @@ YTapi_key = "AIzaSyAHlhEhjECdTBDLs_JeGygh9J5T3tBwDd4"
 Gapi_key = "AIzaSyAHlhEhjECdTBDLs_JeGygh9J5T3tBwDd4"
 cx = "f6102f35bce1e44ed"
 num_results = 4  # main to dekh bhi nhi rha tha 200 se isi lie start kia tha Xd  GUD GUD tu hi idhar le aaya xD
-
 
 # Logging configuration
 logging.basicConfig(format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
@@ -146,205 +144,26 @@ def get_db():
 # Auth verification decorator
 from fastapi import Request
 
-def token_required(request: Request):
-    token = request.headers.get('x-access-token')
-    if not token:
-        raise HTTPException(status_code=401, detail="Token is missing !!")
-    
-    try:
-        # Decode the token to get the username
-        data = jwt.decode(token, "h1u2m3a4n5i6z7e8", algorithms=["HS256"])
-        username = data.get("username")
-        if not username:
-            raise HTTPException(status_code=401, detail="Token is invalid !!")
-    except Exception as e:
-        raise HTTPException(status_code=401, detail="Token is invalid !!")
-    
-    return username  # Returns the username to be injected into the route handler
+# db_config = {
+#     "user": "root",
+#     "password": "abc123",
+#     "host": "127.0.0.1",
+#     "port": "3306",
+#     "database": "prakhar",
+# }
+# pool = pooling.MySQLConnectionPool(pool_name="mypool", pool_size=5, **db_config)
 
+# def get_connection():
+#     try:
+#         conn = pool.get_connection()
+#         conn.ping(reconnect=True, attempts=3, delay=5)
+#         return conn
+#     except OperationalError as e:
+#         print("Reconnecting to MySQL:", e)
+#         conn = pool.get_connection()
+#         return conn
 
-import os
-from pathlib import Path
-from tempfile import TemporaryDirectory
-from pdf2image import convert_from_path
-import easyocr
-from PIL import Image
-
-def OCRFINAL(pdf_name, output_file, out_directory=Path("~").expanduser(), dpi=200):
-    # Initialize EasyOCR reader (English language assumed)
-    reader = easyocr.Reader(['en'])
-    
-    PDF_file = Path(pdf_name)
-    image_file_list = []
-    text_file = out_directory / Path(output_file)
-
-    with TemporaryDirectory() as tempdir:
-        pdf_pages = convert_from_path(PDF_file, dpi=dpi, poppler_path="C:\\Users\\Prakhar Agrawal\\Downloads\\Release-24.08.0-0\\poppler-24.08.0\\Library\\bin")
-        print("pdf_pages", pdf_pages)
-        for page_enumeration, page in enumerate(pdf_pages, start=1):
-            filename = f"{tempdir}/page_{page_enumeration:03}.jpg"  # Corrected path separator for cross-platform compatibility
-            page.save(filename, "JPEG")
-            image_file_list.append(filename)
-
-        # Extract text using EasyOCR
-        with open(text_file, "a") as output_file:
-            for image_file in image_file_list:
-                # Read text from the image using EasyOCR
-                text = " ".join(reader.readtext(image_file, detail=0))
-                text = text.replace("-\n", "")
-                output_file.write(text)
-
-        # Read the whole extracted text
-        with open(text_file, "r") as f:
-            textFinal = f.read()
-
-        # Split text into paragraphs of 150 words each
-        paragraphs = []
-        words = textFinal.split()
-        for i in range(0, len(words), 150):
-            paragraphs.append(' '.join(words[i:i + 150]))
-
-        # Delete the text file after processing
-        if os.path.exists(text_file):
-            os.remove(text_file)
-
-    return paragraphs
-# Register user endpoint
-@app.post("/register", response_model=UserResponse)
-def register(request: UserRegisterRequest, db: Session = Depends(get_db)):
-    name, email_id, password = request.name, request.email_id, request.password
-
-    if not name or not email_id or not password:
-        raise HTTPException(status_code=400, detail="Please fill all the fields.")
-
-    try:
-        # Check if user already exists
-        user = db.query(User).filter(User.email_id == email_id).first()
-        if user:
-            raise HTTPException(status_code=400, detail="User already exists.")
-
-        # Add user to the database (hashing password should be done here)
-        hashed_password = password  # Placeholder, ideally use something like bcrypt to hash the password
-        new_user = User(name=name, email_id=email_id, password=hashed_password)
-        db.add(new_user)
-        db.commit()
-        db.refresh(new_user)
-
-        # Create JWT token
-        token = jwt.encode({'username': email_id}, "h1u2m3a4n5i6z7e8", algorithm="HS256")
-
-        return JSONResponse(content={
-            "success": True,
-            "message": "Account created successfully",
-            "token": token,
-            "data": {"name": name, "email_id": email_id},
-            "bots": []
-        }, status_code=201)
-
-    except Exception as e:
-        logging.error(f"MYSQL ERR: {e}")
-        raise HTTPException(status_code=500, detail="Error in writing user data to Database")
-
-# Bot creation request model
-class BotRequest(BaseModel):
-    botid: str
-    primary: bool = False
-from sqlalchemy import text
-
-@app.post("/create-bot")
-async def create_bot(bot_request: BotRequest, username: str = Depends(token_required), db: Session = Depends(get_db)):
-    print("USER:", username)
-    print("BODY:", bot_request.dict())
-
-    try:
-        botid = bot_request.botid
-        primary = bot_request.primary
-
-        # Check if botid already exists
-        bot = db.query(Bot).filter(Bot.botid == botid).first()
-        if bot:
-            raise HTTPException(status_code=400, detail="Bot ID already exists.")
-
-        # Simulating bot creation with print statements
-        print("Class created", time.time())
-        
-        # Add the new bot
-        if primary:
-            db.execute(
-                text("INSERT INTO bots (botid, username, personal) VALUES (:botid, :username, 1)"),
-                {"botid": botid, "username": botid}
-            )
-            # Update the user's bot list
-            user = db.query(User).filter(User.email_id == username).first()
-            bots = json.loads(user.bots)
-            bots.append(botid)
-            db.execute(
-                text("UPDATE users SET bots=:bots WHERE email_id=:email_id"),
-                {"bots": json.dumps(bots), "email_id": username}
-            )
-        else:
-            user = db.query(User).filter(User.email_id == username).first()
-            db.execute(
-                text("INSERT INTO bots (botid, username) VALUES (:botid, :username)"),
-                {"botid": botid, "username": user.email_id}
-            )
-
-        db.commit()
-        return JSONResponse(status_code=201, content={"success": True, "message": "Bot created successfully."})
-
-    except Exception as e:
-        print("MYSQL ERR:", e)
-        raise HTTPException(status_code=500, detail="Error in writing bot data to Database")
-    
-UPLOAD_FOLDER = "./assets"  # Folder to save the uploaded files
-ALLOWED_EXTENSIONS = {'pdf'}  # Allowed file types
-
-# Helper function to check allowed file extensions
-def allowed_file(filename: str) -> bool:
-    return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
-
-@app.post("/upload-pdf")
-async def upload_pdf(pdf: UploadFile = File(...)):
-    try:
-        # Check if allowed file
-        if 'pdf' not in pdf.filename:
-            raise HTTPException(status_code=400, detail="No file part")
-        
-        if pdf.filename == '':
-            raise HTTPException(status_code=400, detail="No selected file")
-        
-        if allowed_file(pdf.filename):
-            # Save file
-            filename = secure_filename(pdf.filename)
-            file_path = os.path.join(UPLOAD_FOLDER, filename)
-            with open(file_path, "wb") as buffer:
-                buffer.write(await pdf.read())
-            
-            txt = filename.replace(".pdf", ".txt")
-            inpt = OCRFINAL(file_path, txt)  # Assuming OCRFINAL is implemented elsewhere
-            
-            string = "".join(inpt)
-            
-            # Clean up files after processing
-            try:
-                os.remove(file_path)
-                os.remove(os.path.join(UPLOAD_FOLDER, txt))
-            except Exception as e:
-                print(f"Error deleting files: {e}")
-            
-            return JSONResponse(
-                content={"success": True, "message": "File uploaded successfully.", "data": string},
-                status_code=200
-            )
-        else:
-            raise HTTPException(status_code=400, detail="File type not allowed")
-    
-    except Exception as e:
-        print(f"Error: {e}")
-        raise HTTPException(status_code=500, detail="Error in uploading file")
-
-
-YTapi_key = "AIzaSyAHlhEhjECdTBDLs_JeGygh9J5T3tBwDd4"
+# sending gmail without the below functions, as they don't work
 def sendMail(sender, to, subject, msg="", msgHtml=None):
     print("Parmas", sender, to, subject, msg, msgHtml)
     # getting refresh token from sql record of sender email
@@ -679,7 +498,6 @@ Some features are about to released by month end, like Lead Generation (Lead gen
             raise
 
     return StreamingResponse(stream_response(), media_type='text/event-stream')
-
 
 if __name__ == "__main__":
     import uvicorn
