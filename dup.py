@@ -1,13 +1,13 @@
-# 2140 me hai ek to
-
 from functools import wraps
 import os
 import uuid
 import openai
 import weaviate
-import random
-from langchain import PromptTemplate, OpenAI, LLMChain
-from langchain.chat_models import ChatOpenAI
+from langchain_core.prompts import PromptTemplate
+from langchain_community.llms import OpenAI
+from langchain.chains import LLMChain
+
+from langchain_openai import ChatOpenAI
 from langchain.memory import ConversationBufferWindowMemory
 import pandas as pd
 import string
@@ -21,7 +21,8 @@ from tempfile import TemporaryDirectory
 import pytesseract
 from pathlib import Path
 from PIL import Image
-from PyPDF2 import PdfReader
+from pypdf import PdfReader  # Instead of from PyPDF2 import PdfReader
+
 from pdf2image import convert_from_path
 from flask import Flask, request, render_template, jsonify
 from flask_cors import CORS, cross_origin
@@ -700,13 +701,16 @@ app.config['UPLOAD_FOLDER'] = UPLOAD_FOLDER
 ALLOWED_EXTENSIONS = {"pdf", "png", "jpg", "jpeg", "jfif", "gif"}
 
 mysql = MySQL()
-app.config['MYSQL_DATABASE_USER'] = 'Prakhar Agrawal'  # The username you set for MySQL (root)
-app.config['MYSQL_DATABASE_PASSWORD'] = 'Rishi#1203'  # The password you set for MySQL root user
-app.config['MYSQL_DATABASE_DB'] = 'humanize'  # The name of the database you want to use
-app.config['MYSQL_DATABASE_HOST'] = 'host.docker.internal'
+# MySQL configuration
+app.config['MYSQL_HOST'] = 'localhost'  # or your MySQL server IP
+app.config['MYSQL_USER'] = 'root'  # MySQL username
+app.config['MYSQL_PASSWORD'] = 'abc123'  # MySQL password
+app.config['MYSQL_DB'] = 'prakhar'  # Database name
 
-  # Since the MySQL server is running locally (in a Docker container)
+
+# Initialize MySQL with Flask app
 mysql.init_app(app)
+
 
 
 # public assets folder
@@ -1230,19 +1234,47 @@ def CreateMessage(sender, to, subject, msgPlain="", msgHtml=None):
     return body
 
 
-#sendMail("prakhar.2201154me@iiitbh.ac.in", "rishiagrawal117@gmail.com", "abcd", "Hi<br/>", "Hi<br/><br/><h1>yo</h1>")
-# sendMail("vishalvishwajeet422@gmail.com", "vishalvishwajeet841@gmail.com", "Just saying hi", "Hi Vishal!")
 
+@app.route('/register', methods=['POST'])
+@cross_origin()
+def register():
+    name, email_id, password = request.json['name'], request.json['email_id'], request.json['password']
 
-@app.route('/')
-def home():
-    return "Hello, Flask!"
+    if name == "" or email_id == "" or password == "":
+        return jsonify({"success": False, "message": "Please fill all the fields."}), 400
 
-@app.route('/send-email')
-def send_email_route():
-    sendMail("prakhar.2201154me@iiitbh.ac.in", "rishiagrawal117@gmail.com", "abcd", "Hi<br/>", "Hi<br/><br/><h1>yo</h1>")
-    return "Email sent!"
+    try:
+        conn = mysql.connect()
+        cur = conn.cursor()
+        empty_array_string = json.dumps([])
+        # public, info, steps ye sab add krna in the end
+        # query = "CREATE TABLE IF NOT EXISTS users (id INT AUTO_INCREMENT PRIMARY KEY, name VARCHAR(255), phone VARCHAR(255), email_id VARCHAR(255) UNIQUE, password VARCHAR(255), username VARCHAR(255) DEFAULT NULL, pic VARCHAR(255) DEFAULT NULL, purpose VARCHAR(255) DEFAULT NULL, plan INT(255) DEFAULT 0, whatsapp VARCHAR(255) DEFAULT NULL, youtube VARCHAR(255) DEFAULT NULL, instagram VARCHAR(255) DEFAULT NULL, discord VARCHAR(255) DEFAULT NULL, telegram VARCHAR(255) DEFAULT NULL, website VARCHAR(255) DEFAULT NULL, favBots VARCHAR(255) DEFAULT '" + empty_array_string + "', pdfs VARCHAR(255) DEFAULT '" + empty_array_string + "', bots VARCHAR(255) DEFAULT '" + empty_array_string + "', setup BOOLEAN DEFAULT 0)"
+        # query2 = "CREATE TABLE IF NOT EXISTS bots (id INT AUTO_INCREMENT PRIMARY KEY, botid VARCHAR(255) UNIQUE NOT NULL, name VARCHAR(255) DEFAULT NULL, username VARCHAR(255) NOT NULL, description VARCHAR(255) DEFAULT NULL, pic VARCHAR(255) DEFAULT NULL, interactions INT(255) DEFAULT 0, likes INT(255) DEFAULT 0, whatsapp VARCHAR(255) DEFAULT NULL, youtube VARCHAR(255) DEFAULT NULL, instagram VARCHAR(255) DEFAULT NULL, discord VARCHAR(255) DEFAULT NULL, telegram VARCHAR(255) DEFAULT NULL, pdfs VARCHAR(255) DEFAULT '" + empty_array_string + "', setup BOOLEAN DEFAULT 0)"
+        # print("Acc creation query", query)
+        # cur.execute(query)
+        print("Step 1")
+        # cur.execute(query2)
+        print("Step 2")
+        cur.execute("INSERT INTO users (name, email_id, password) VALUES (%s, %s, %s)",
+                    (name, email_id, generate_password_hash(password)))
+        conn.commit()
+        cur.close()
+        print("User data written to mysql")
 
+        token = jwt.encode({'username': email_id}, "h1u2m3a4n5i6z7e8")
+        return jsonify({
+            "success": True,
+            "message": "Account created successfully",
+            "token": token,
+            "data": {
+                "name": name,
+                "email_id": email_id
+            },
+            "bots": []
+        }), 201
+    except Exception as e:
+        print("MYSQL ERR", e)
+        return jsonify({"success": False, "message": "Error in writing user data to Database"}), 500
 
 if __name__ == "__main__":
-    app.run(debug=True, host='0.0.0.0', port=5000)
+    app.run(debug=True)
