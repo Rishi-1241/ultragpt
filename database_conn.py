@@ -77,7 +77,6 @@ import json
 import urllib.parse
 import openai
 import mysql.connector as mysql
-import mysql.connector
 from mysql.connector import pooling, OperationalError
 
 # Initialize FastAPI app
@@ -85,13 +84,13 @@ app = FastAPI()
 
 # environment setup
 open_api_key = ""  # add your openai api key here
-os.environ["OPENAI_API_KEY"] =  "sk-qZA5vCHZR0_tgTBYmMiOxDMwSqM-tzv5oNIs313-nHT3BlbkFJw-dAjV_QA9Qa8eYkc4mWTHTnF3vLuIBqx-SaQz6dcA"
+os.environ[
+    "OPENAI_API_KEY"] = "sk-qZA5vCHZR0_tgTBYmMiOxDMwSqM-tzv5oNIs313-nHT3BlbkFJw-dAjV_QA9Qa8eYkc4mWTHTnF3vLuIBqx-SaQz6dcA"
 openai.api_key = "sk-qZA5vCHZR0_tgTBYmMiOxDMwSqM-tzv5oNIs313-nHT3BlbkFJw-dAjV_QA9Qa8eYkc4mWTHTnF3vLuIBqx-SaQz6dcA"
 YTapi_key = "AIzaSyAHlhEhjECdTBDLs_JeGygh9J5T3tBwDd4"
 Gapi_key = "AIzaSyAHlhEhjECdTBDLs_JeGygh9J5T3tBwDd4"
 cx = "f6102f35bce1e44ed"
 num_results = 4  # main to dekh bhi nhi rha tha 200 se isi lie start kia tha Xd  GUD GUD tu hi idhar le aaya xD
-
 
 # Logging configuration
 logging.basicConfig(format=f'%(asctime)s %(levelname)s %(name)s %(threadName)s : %(message)s')
@@ -103,6 +102,7 @@ SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
 
 Base = declarative_base()
 
+
 # User model
 class User(Base):
     __tablename__ = 'users'
@@ -112,7 +112,9 @@ class User(Base):
     password = Column(String)
     bots = Column(String, default="[]")  # Storing bots as JSON string
 
+
 Base.metadata.create_all(bind=engine)
+
 
 class Bot(Base):
     __tablename__ = 'bots'
@@ -122,11 +124,13 @@ class Bot(Base):
     username = Column(String, index=True)
     personal = Column(Boolean, default=False)  # To track if the bot is primary or not
 
+
 # Pydantic models for request validation
 class UserRegisterRequest(BaseModel):
     name: str
     email_id: str
     password: str
+
 
 class UserResponse(BaseModel):
     success: bool
@@ -134,6 +138,7 @@ class UserResponse(BaseModel):
     token: str
     data: dict
     bots: list = []
+
 
 # Dependency to get the database session
 def get_db():
@@ -143,14 +148,16 @@ def get_db():
     finally:
         db.close()
 
+
 # Auth verification decorator
 from fastapi import Request
+
 
 def token_required(request: Request):
     token = request.headers.get('x-access-token')
     if not token:
         raise HTTPException(status_code=401, detail="Token is missing !!")
-    
+
     try:
         # Decode the token to get the username
         data = jwt.decode(token, "h1u2m3a4n5i6z7e8", algorithms=["HS256"])
@@ -159,7 +166,7 @@ def token_required(request: Request):
             raise HTTPException(status_code=401, detail="Token is invalid !!")
     except Exception as e:
         raise HTTPException(status_code=401, detail="Token is invalid !!")
-    
+
     return username  # Returns the username to be injected into the route handler
 
 
@@ -170,16 +177,18 @@ from pdf2image import convert_from_path
 import easyocr
 from PIL import Image
 
+
 def OCRFINAL(pdf_name, output_file, out_directory=Path("~").expanduser(), dpi=200):
     # Initialize EasyOCR reader (English language assumed)
     reader = easyocr.Reader(['en'])
-    
+
     PDF_file = Path(pdf_name)
     image_file_list = []
     text_file = out_directory / Path(output_file)
 
     with TemporaryDirectory() as tempdir:
-        pdf_pages = convert_from_path(PDF_file, dpi=dpi, poppler_path="C:\\Users\\Prakhar Agrawal\\Downloads\\Release-24.08.0-0\\poppler-24.08.0\\Library\\bin")
+        pdf_pages = convert_from_path(PDF_file, dpi=dpi,
+                                      poppler_path="C:\\Users\\Prakhar Agrawal\\Downloads\\Release-24.08.0-0\\poppler-24.08.0\\Library\\bin")
         print("pdf_pages", pdf_pages)
         for page_enumeration, page in enumerate(pdf_pages, start=1):
             filename = f"{tempdir}/page_{page_enumeration:03}.jpg"  # Corrected path separator for cross-platform compatibility
@@ -209,6 +218,8 @@ def OCRFINAL(pdf_name, output_file, out_directory=Path("~").expanduser(), dpi=20
             os.remove(text_file)
 
     return paragraphs
+
+
 # Register user endpoint
 @app.post("/register", response_model=UserResponse)
 def register(request: UserRegisterRequest, db: Session = Depends(get_db)):
@@ -245,11 +256,15 @@ def register(request: UserRegisterRequest, db: Session = Depends(get_db)):
         logging.error(f"MYSQL ERR: {e}")
         raise HTTPException(status_code=500, detail="Error in writing user data to Database")
 
+
 # Bot creation request model
 class BotRequest(BaseModel):
     botid: str
     primary: bool = False
+
+
 from sqlalchemy import text
+
 
 @app.post("/create-bot")
 async def create_bot(bot_request: BotRequest, username: str = Depends(token_required), db: Session = Depends(get_db)):
@@ -267,7 +282,7 @@ async def create_bot(bot_request: BotRequest, username: str = Depends(token_requ
 
         # Simulating bot creation with print statements
         print("Class created", time.time())
-        
+
         # Add the new bot
         if primary:
             db.execute(
@@ -295,13 +310,16 @@ async def create_bot(bot_request: BotRequest, username: str = Depends(token_requ
     except Exception as e:
         print("MYSQL ERR:", e)
         raise HTTPException(status_code=500, detail="Error in writing bot data to Database")
-    
+
+
 UPLOAD_FOLDER = "./assets"  # Folder to save the uploaded files
 ALLOWED_EXTENSIONS = {'pdf'}  # Allowed file types
+
 
 # Helper function to check allowed file extensions
 def allowed_file(filename: str) -> bool:
     return '.' in filename and filename.rsplit('.', 1)[1].lower() in ALLOWED_EXTENSIONS
+
 
 @app.post("/upload-pdf")
 async def upload_pdf(pdf: UploadFile = File(...)):
@@ -309,42 +327,44 @@ async def upload_pdf(pdf: UploadFile = File(...)):
         # Check if allowed file
         if 'pdf' not in pdf.filename:
             raise HTTPException(status_code=400, detail="No file part")
-        
+
         if pdf.filename == '':
             raise HTTPException(status_code=400, detail="No selected file")
-        
+
         if allowed_file(pdf.filename):
             # Save file
             filename = secure_filename(pdf.filename)
             file_path = os.path.join(UPLOAD_FOLDER, filename)
             with open(file_path, "wb") as buffer:
                 buffer.write(await pdf.read())
-            
+
             txt = filename.replace(".pdf", ".txt")
             inpt = OCRFINAL(file_path, txt)  # Assuming OCRFINAL is implemented elsewhere
-            
+
             string = "".join(inpt)
-            
+
             # Clean up files after processing
             try:
                 os.remove(file_path)
                 os.remove(os.path.join(UPLOAD_FOLDER, txt))
             except Exception as e:
                 print(f"Error deleting files: {e}")
-            
+
             return JSONResponse(
                 content={"success": True, "message": "File uploaded successfully.", "data": string},
                 status_code=200
             )
         else:
             raise HTTPException(status_code=400, detail="File type not allowed")
-    
+
     except Exception as e:
         print(f"Error: {e}")
         raise HTTPException(status_code=500, detail="Error in uploading file")
 
 
 YTapi_key = "AIzaSyAHlhEhjECdTBDLs_JeGygh9J5T3tBwDd4"
+
+
 def sendMail(sender, to, subject, msg="", msgHtml=None):
     print("Parmas", sender, to, subject, msg, msgHtml)
     # getting refresh token from sql record of sender email
@@ -389,6 +409,8 @@ def sendMail(sender, to, subject, msg="", msgHtml=None):
     )
     # http = credentials.authorize(httplib2.Http())
     service = build('gmail', 'v1', credentials=credentials)
+
+
 # API functions for ChatCompletion Functions (right now only weather & YT search are used)
 def get_weather(city):
     print("Getting weather of", city)
@@ -680,7 +702,715 @@ Some features are about to released by month end, like Lead Generation (Lead gen
 
     return StreamingResponse(stream_response(), media_type='text/event-stream')
 
+@app.get("/like-bot/{botid}")
+async def like_bot(botid: str, username: str = Depends(token_required)):
+    """
+    Increment the like count for a bot and add it to the user's favorite bots list.
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Update likes for the bot
+        query1 = "UPDATE bots SET likes = likes + 1 WHERE botid = %s"
+        cur.execute(query1, (botid,))
+
+        # Fetch user's favorite bots
+        query2 = "SELECT favBots FROM users WHERE email_id = %s"
+        cur.execute(query2, (username,))
+        fav_bots_raw = cur.fetchone()
+        fav_bots = json.loads(fav_bots_raw[0]) if fav_bots_raw and fav_bots_raw[0] else []
+
+        # Add botid to favorites if not already present
+        if botid not in fav_bots:
+            fav_bots.append(botid)
+
+        # Update the user's favorite bots
+        query3 = "UPDATE users SET favBots = %s WHERE email_id = %s"
+        cur.execute(query3, (json.dumps(fav_bots), username))
+
+        conn.commit()
+        cur.close()
+
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "message": "Bot liked successfully."},
+        )
+
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(status_code=500, detail="Error in liking bot")
+
+
+@app.get("/unlike-bot/{botid}")
+async def unlike_bot(botid: str, username: str = Depends(token_required)):
+    """
+    Decrement the like count for a bot and remove it from the user's favorite bots list.
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Update likes for the bot
+        query1 = "UPDATE bots SET likes = likes - 1 WHERE botid = %s"
+        cur.execute(query1, (botid,))
+
+        # Fetch user's favorite bots
+        query2 = "SELECT favBots FROM users WHERE email_id = %s"
+        cur.execute(query2, (username,))
+        fav_bots_raw = cur.fetchone()
+        fav_bots = json.loads(fav_bots_raw[0]) if fav_bots_raw and fav_bots_raw[0] else []
+
+        # Remove botid from favorites if present
+        if botid in fav_bots:
+            fav_bots.remove(botid)
+
+        # Update the user's favorite bots
+        query3 = "UPDATE users SET favBots = %s WHERE email_id = %s"
+        cur.execute(query3, (json.dumps(fav_bots), username))
+
+        conn.commit()
+        cur.close()
+
+        return JSONResponse(
+            status_code=200,
+            content={"success": True, "message": "Bot unliked successfully."},
+        )
+
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(status_code=500, detail="Error in unliking bot")
+
+@app.get("/get-chats/{botid}")
+async def get_chats(botid: str, username: str = Depends(token_required)):
+    """
+    Fetch the 50 most recent chat messages between a user and a bot.
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Fetching the 50 latest chats
+        query = """
+        SELECT * FROM messages 
+        WHERE (username = %s AND botid = %s) 
+        ORDER BY timestamp DESC 
+        LIMIT 50
+        """
+        cur.execute(query, (username, botid))
+        chats = cur.fetchall()
+
+        # Convert chats into a list of dictionaries
+        chats_new = [{"sender": chat[3], "message": chat[4]} for chat in chats]
+
+        conn.commit()
+        cur.close()
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Chats fetched successfully.",
+                "data": chats_new,
+            },
+        )
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(
+            status_code=500, detail="Error in fetching chats data from the database"
+        )
+
+@app.get("/get-bot-data/{botid}", response_model=dict)
+async def get_bot_data(botid: str, username: str = Depends(token_required)):
+    """
+    Fetch bot data from the bots table, its owner info from the users table,
+    and all bots data with the same username.
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Query to get the bot details
+        query1 = """
+            SELECT botid, name, description, interactions, likes, username, personal, public 
+            FROM bots WHERE botid = %s
+        """
+        query2 = """
+            SELECT name, pic, username, whatsapp, telegram, discord, instagram, youtube, website 
+            FROM users WHERE username = %s
+        """
+        query3 = """
+            SELECT botid, name, description, interactions, likes, personal, public 
+            FROM bots WHERE username = %s
+        """
+
+        # Execute the query to fetch the bot details
+        cur.execute(query1, (botid,))
+        bot = cur.fetchone()
+
+        if not bot:
+            raise HTTPException(status_code=404, detail="Bot not found")
+
+        # Execute the query to fetch owner details
+        cur.execute(query2, (bot[5],))  # `bot[5]` is the username
+        owner = cur.fetchone()
+
+        # Execute the query to fetch all bots with the same username
+        cur.execute(query3, (bot[5],))  # `bot[5]` is the username
+        bots = cur.fetchall()
+
+        conn.commit()
+        cur.close()
+
+        # Format the response data
+        bot_data = {
+            "bot": {
+                "botid": bot[0],
+                "name": bot[1],
+                "description": bot[2],
+                "interactions": bot[3],
+                "likes": bot[4],
+                "username": bot[5],
+                "personal": bot[6],
+                "public": bot[7]
+            },
+            "owner": {
+                "name": owner[0] if owner else None,
+                "pic": owner[1] if owner else None,
+                "username": owner[2] if owner else None,
+                "whatsapp": owner[3] if owner else None,
+                "telegram": owner[4] if owner else None,
+                "discord": owner[5] if owner else None,
+                "instagram": owner[6] if owner else None,
+                "youtube": owner[7] if owner else None,
+                "website": owner[8] if owner else None,
+            },
+            "bots": [
+                {
+                    "botid": b[0],
+                    "name": b[1],
+                    "description": b[2],
+                    "interactions": b[3],
+                    "likes": b[4],
+                    "personal": b[5],
+                    "public": b[6],
+                }
+                for b in bots
+            ],
+        }
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Bot data fetched successfully.",
+                "data": bot_data,
+            },
+        )
+
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(status_code=500, detail="Error in fetching bot data from Database")
+
+@app.get("/load-more-popular-bots/{offset}")
+async def load_more_popular_bots(offset: int, username: str):
+    """
+    Fetch the next 9 popular bots after the last botid for the specified username.
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Query to fetch the next 9 popular bots for the specified username
+        query = """
+            SELECT botid, name, pic, description, interactions, likes
+            FROM bots
+            WHERE username = %s AND name IS NOT NULL
+            ORDER BY interactions DESC
+            LIMIT 150;
+        """
+        # Pass the username parameter
+        cur.execute(query, (username,))
+        bots = cur.fetchall()
+
+        # Handle slicing for pagination
+        paginated_bots = bots[offset: offset + 9]
+
+        conn.commit()
+        cur.close()
+
+        # Return the bots in response
+        if paginated_bots:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "success": True,
+                    "message": "Bots fetched successfully.",
+                    "data": paginated_bots,
+                },
+            )
+        else:
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "success": True,
+                    "message": "No more bots to fetch.",
+                    "data": [],
+                },
+            )
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(status_code=500, detail="Error in fetching bots data from Database")
+
+
+@app.get("/get-bots")
+async def get_bots(username: str = Depends(token_required)):
+    """
+    Fetch bots the user has interacted with, including top bots, latest bots, and favorite bots.
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Query to get bots user has interacted with
+        query_get_talked_bots = """
+            SELECT 
+                bots.botid, bots.username, bots.description AS bot_description,
+                bots.interactions, bots.likes, bots.name AS bot_name, bots.pic AS bot_pic
+            FROM 
+                bots 
+            INNER JOIN (
+                SELECT DISTINCT botid 
+                FROM messages 
+                WHERE username = %s
+            ) AS user_interactions 
+            ON bots.botid = user_interactions.botid
+        """
+
+        # Query to get favorite bots
+        query_fav_bots = """
+            SELECT 
+            b.botid, b.username, b.description, b.interactions, b.likes, 
+            b.name, b.pic 
+        FROM 
+            bots AS b 
+        WHERE 
+            b.botid IN %s
+
+        """
+
+        # Query to get top bots
+        query_top_bots = """
+            SELECT 
+                b.botid, b.name, b.pic, b.description, b.interactions, 
+                b.likes 
+            FROM 
+                bots AS b 
+            WHERE 
+                b.name IS NOT NULL AND b.public = 1 
+            ORDER BY 
+                b.interactions DESC 
+            LIMIT 9
+
+        """
+
+        # Query to get latest bots
+        query_latest_bots = """
+            SELECT 
+                b.botid, b.name, b.pic, b.description, b.interactions, 
+                b.likes 
+            FROM 
+                bots AS b 
+            WHERE 
+                b.name IS NOT NULL AND b.public = 1 
+            ORDER BY 
+                b.id DESC 
+            LIMIT 6
+
+        """
+
+        # Get bots the user has interacted with
+        cur.execute(query_get_talked_bots, (username,))
+        talked_bots = cur.fetchall()
+
+        # Get favorite bots
+        cur.execute("SELECT favBots FROM users WHERE username=%s OR email_id=%s", (username, username))
+        fav_bots_list = cur.fetchone()
+        fav_bots = json.loads(fav_bots_list[0]) if fav_bots_list and fav_bots_list[0] else []
+
+        # Handle empty favorite bots
+        if fav_bots:
+            fav_bots_tuple = tuple(fav_bots)
+            cur.execute(query_fav_bots, (fav_bots_tuple,))
+            favorite_bots = cur.fetchall()
+        else:
+            favorite_bots = []
+
+        # Combine talked and favorite bots
+        all_talked_bots = talked_bots + favorite_bots
+
+        # Get top bots
+        cur.execute(query_top_bots)
+        top_bots = cur.fetchall()
+
+        # Get latest bots
+        cur.execute(query_latest_bots)
+        latest_bots = cur.fetchall()
+
+        conn.commit()
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Bots fetched successfully.",
+                "data": {
+                    "talkedBots": all_talked_bots,
+                    "topBots": top_bots,
+                    "latestBots": latest_bots,
+                },
+            },
+        )
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(
+            status_code=500, detail="Error in fetching bots data from the Database"
+        )
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/get-bots")
+async def get_bots(username: str = Depends(token_required)):
+    """
+    Fetch bots the user has interacted with, including top bots, latest bots, and favorite bots.
+    """
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Query to get bots user has interacted with
+        query_get_talked_bots = """
+            SELECT 
+                bots.botid, bots.username, bots.description AS bot_description,
+                bots.interactions, bots.likes, bots.name AS bot_name, bots.pic AS bot_pic
+            FROM 
+                bots 
+            INNER JOIN (
+                SELECT DISTINCT botid 
+                FROM messages 
+                WHERE username = %s
+            ) AS user_interactions 
+            ON bots.botid = user_interactions.botid
+        """
+
+        # Query to get favorite bots
+        query_fav_bots = """
+            SELECT 
+                b.botid, b.username, b.description, b.interactions, b.likes, 
+                b.name, b.pic 
+            FROM 
+                bots AS b 
+            WHERE 
+                b.botid IN %s
+
+        """
+
+        # Query to get top bots
+        query_top_bots = """
+            SELECT 
+                b.botid, b.name, b.pic, b.description, b.interactions, 
+                b.likes 
+            FROM 
+                bots AS b 
+            WHERE 
+                b.name IS NOT NULL AND b.public = 1 
+            ORDER BY 
+                b.interactions DESC 
+            LIMIT 9
+
+        """
+
+        # Query to get latest bots
+        query_latest_bots = """
+           SELECT 
+            b.botid, b.name, b.pic, b.description, b.interactions, 
+            b.likes 
+        FROM 
+            bots AS b 
+        WHERE 
+            b.name IS NOT NULL AND b.public = 1 
+        ORDER BY 
+            b.id DESC 
+        LIMIT 6
+        """
+
+        # Get bots the user has interacted with
+        cur.execute(query_get_talked_bots, (username,))
+        talked_bots = cur.fetchall()
+
+        # Get favorite bots
+        cur.execute("SELECT favBots FROM users WHERE username=%s OR email_id=%s", (username, username))
+        fav_bots_list = cur.fetchone()
+        fav_bots = json.loads(fav_bots_list[0]) if fav_bots_list and fav_bots_list[0] else []
+
+        # Handle empty favorite bots
+        if fav_bots:
+            fav_bots_tuple = tuple(fav_bots)
+            cur.execute(query_fav_bots, (fav_bots_tuple,))
+            favorite_bots = cur.fetchall()
+        else:
+            favorite_bots = []
+
+        # Combine talked and favorite bots
+        all_talked_bots = talked_bots + favorite_bots
+
+        # Get top bots
+        cur.execute(query_top_bots)
+        top_bots = cur.fetchall()
+
+        # Get latest bots
+        cur.execute(query_latest_bots)
+        latest_bots = cur.fetchall()
+
+        conn.commit()
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Bots fetched successfully.",
+                "data": {
+                    "talkedBots": all_talked_bots,
+                    "topBots": top_bots,
+                    "latestBots": latest_bots,
+                },
+            },
+        )
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(
+            status_code=500, detail="Error in fetching bots data from the Database"
+        )
+    finally:
+        cur.close()
+        conn.close()
+
+@app.get("/get-last-msg/{botid}")
+async def get_last_msg(botid: str, username: str = Depends(token_required)):
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query = """
+            SELECT * 
+            FROM messages 
+            WHERE username=%s AND botid=%s 
+            ORDER BY timestamp DESC 
+            LIMIT 1
+        """
+        cur.execute(query, (username, botid))
+        result = cur.fetchone()
+
+        if result:
+            message = result[4]  # Assuming the message is in the 5th column
+            return JSONResponse(
+                status_code=200,
+                content={
+                    "success": True,
+                    "message": "Last message fetched successfully.",
+                    "data": message,
+                },
+            )
+        else:
+            raise HTTPException(status_code=404, detail="Message not found")
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(
+            status_code=500, detail="Error in fetching last message from the Database"
+        )
+    finally:
+        cur.close()
+        conn.close()
+
+from fastapi.responses import JSONResponse
+from fastapi import Form, File, UploadFile, Depends, HTTPException
+from typing import Optional
+
+@app.post("/store-bot-data")
+async def store_bot_data(
+    username: str = Depends(token_required),  # Get username from token_required
+    botid: str = Form(...),
+    name: str = Form(...),
+    description: str = Form(...),
+     botrole: Optional[str] = Form(None),
+    steps: Optional[str] = Form(None),
+
+    purpose:Optional[str] = Form(None),
+    public: bool = Form(...),
+    pic: Optional[UploadFile] = File(None),
+    company_info: Optional[str] = Form(None),
+    whatsapp: Optional[str] = Form(None),
+    telegram: Optional[str] = Form(None),
+    discord: Optional[str] = Form(None),
+    youtube: Optional[str] = Form(None),
+    instagram: Optional[str] = Form(None),
+    twitter: Optional[str] = Form(None),
+    linkedin: Optional[str] = Form(None),
+    website: Optional[str] = Form(None),
+):
+    try:
+        # Save the uploaded profile image if provided
+        pic_filename = None
+        if pic and allowed_file(pic.filename):
+            pic_filename = secure_filename(pic.filename)
+            save_path = os.path.join(os.getcwd(), "assets", pic_filename)
+            with open(save_path, "wb") as f:
+                f.write(pic.file.read())
+
+
+        # Database connection
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Update the bots table
+        bot_update_query = """
+            UPDATE bots 
+            SET 
+                name=%s, description=%s, pic=%s, 
+                purpose=%s, public=%s 
+            WHERE botid=%s
+        """
+
+        # Handle updates to the users table if the bot is primary
+        if username == botid:
+            cur.execute("UPDATE users SET setup=%s WHERE email_id=%s", (1, username))
+
+            user_update_query = """
+                UPDATE users 
+                SET 
+                    purpose=%s, whatsapp=%s, telegram=%s, discord=%s, youtube=%s, 
+                    instagram=%s, twitter=%s, linkedin=%s, website=%s 
+                WHERE email_id=%s OR username=%s
+            """
+            cur.execute(
+                bot_update_query,
+                (
+                    name, description, pic_filename, purpose,
+                    whatsapp, telegram, discord, youtube, instagram, twitter,
+                    linkedin, website, company_info, public, botid,
+                ),
+            )
+
+        cur.execute(
+            bot_update_query,
+            (
+                name, description, pic_filename,
+                purpose, public, botid,
+            ),
+        )
+
+        # Commit the transaction and close the cursor
+        conn.commit()
+        cur.close()
+
+        return JSONResponse(content={"success": True, "message": "Bot data stored successfully."})
+
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(status_code=500, detail="Error in writing bot data to Database")
+
+
+@app.get("/get-bot-chats/{botid}")
+async def get_bot_chats(botid: str, username: str = Depends(token_required)):
+    """
+    Fetch chat details of users interacting with a specific bot owned by the username.
+    """
+    # Check if the user is the owner of the bot
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        query_owner = """
+        SELECT u.email_id 
+        FROM bots AS b 
+        JOIN users AS u ON b.username = u.username 
+        WHERE b.botid = %s
+        """
+        cur.execute(query_owner, (botid,))
+        result = cur.fetchone()
+
+        if not result or result[0] != username:
+            raise HTTPException(status_code=401, detail="You are not the owner of this bot.")
+
+        conn.commit()
+        cur.close()
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(status_code=500, detail="Error in verifying bot ownership.")
+
+    # Fetch chat details for the bot
+    try:
+        conn = get_db_connection()
+        cur = conn.cursor()
+
+        # Disable ONLY_FULL_GROUP_BY mode
+        cur.execute("SET GLOBAL sql_mode=(SELECT REPLACE(@@sql_mode,'ONLY_FULL_GROUP_BY',''));")
+
+        query_chats = """
+        WITH RankedMessages AS (
+            SELECT 
+                M.username AS email_id,
+                U.name,
+                U.pic,
+                M.message AS lastMessage,
+                COUNT(M.message) OVER (PARTITION BY M.username) AS messageCount,
+                ROW_NUMBER() OVER (PARTITION BY M.username ORDER BY M.timestamp DESC) AS rownum
+            FROM 
+                messages AS M
+            JOIN 
+                users AS U ON M.username = U.email_id
+            WHERE 
+                M.botid = %s
+        )
+        SELECT 
+            email_id, name, pic, lastMessage, messageCount
+        FROM 
+            RankedMessages
+        WHERE 
+            rownum = 1
+        LIMIT 100;
+        """
+
+        cur.execute(query_chats, (botid,))
+        chats = cur.fetchall()
+
+        # Convert chats into a list of dictionaries
+        chats_new = [
+            {
+                "name": chat[1],
+                "username": chat[0],
+                "lastMessage": chat[3],
+                "count": chat[4],
+                "image": chat[2]
+            }
+            for chat in chats
+        ]
+
+        conn.commit()
+        cur.close()
+
+        return JSONResponse(
+            status_code=200,
+            content={
+                "success": True,
+                "message": "Chats fetched successfully.",
+                "data": chats_new,
+            },
+        )
+    except Exception as e:
+        print("MYSQL ERR", e)
+        raise HTTPException(status_code=500, detail="Error in fetching chats data from the database.")
 
 if __name__ == "__main__":
     import uvicorn
+
     uvicorn.run(app, host="0.0.0.0", port=3000)
